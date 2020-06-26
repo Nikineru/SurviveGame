@@ -3,23 +3,32 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
+using UnityEditor.UIElements;
 
 public class PlayerControll : MonoBehaviour
 {
+    public float Health;
+
     private Rigidbody PlayerRigedBody;
+
     public float MoveSpeed;
     public float Sensetive;
     public float JumpForse;
     public float stamina;
-    public float SitSpeed;
-    public float RunSpeed;
+    private float SitSpeed;
+    private float RunSpeed;
     private float SimpleSpeed;
     private float MouseX;
     private float MouseY;
+    private List<float> Characteristicks;
     private void Start()
     {
         PlayerRigedBody = GetComponent<Rigidbody>();
         SimpleSpeed = MoveSpeed;
+        SitSpeed = SimpleSpeed * 0.5f;
+        RunSpeed = SimpleSpeed * 1.5f;
+
+        Characteristicks = new List<float>() { Health, stamina };
     }
     public void PlayerMove() 
     {
@@ -53,28 +62,53 @@ public class PlayerControll : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.LeftControl))
         {
             MoveSpeed = SitSpeed;
+            GetComponent<CapsuleCollider>().height -= 2;
         }
         if (Input.GetKeyUp(KeyCode.LeftControl))
         {
             MoveSpeed = SimpleSpeed;
+            GetComponent<CapsuleCollider>().height += 2;
         }
         if (Input.GetKeyDown(KeyCode.LeftShift))
         {
-            MoveSpeed = RunSpeed;
-            var corutin = StaminaDropping(1,1);
-            StartCoroutine(corutin);
+            if (stamina > 0) 
+            {
+                MoveSpeed = RunSpeed;
+                var corutin = SmoothDropping(1, 20,5); 
+                StartCoroutine(corutin);    
+            }
         }
         if (Input.GetKeyUp(KeyCode.LeftShift))
         {
             MoveSpeed = SimpleSpeed;
         }
     }
-    private IEnumerator StaminaDropping(float SpeedOfDropping,float value) 
+    public IEnumerator SmoothDropping(float SpeedOfDropping,params int[] ValueOfDropping)
     {
-        while (stamina >= 0) 
+        while (true) 
         {
             yield return new WaitForSeconds(SpeedOfDropping);
-            stamina -= value;
+            var Zeroes = Characteristicks.Where(i => i == 0).ToList();
+            if (Zeroes.Count >= Characteristicks.Count)
+                break;
+
+            for (int i = 0; i < Characteristicks.Count; i++)
+            {
+                if (Characteristicks[i] <= 0)
+                    continue;
+                try
+                {
+                    Characteristicks[i] -= ValueOfDropping[i];
+                    Debug.Log(Characteristicks[i]);
+                }
+                catch
+                {
+                    Debug.Log("NullReferense");
+                    i = 0;
+                }
+            }
+            Health = Characteristicks[0];
+            stamina = Characteristicks[1];
         }
     }
     private void RotateCamera() 
