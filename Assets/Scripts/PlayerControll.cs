@@ -7,30 +7,43 @@ using UnityEditor.UIElements;
 
 public class PlayerControll : MonoBehaviour
 {
-    public float Health;
 
-    private Rigidbody PlayerRigedBody;
-
-    public float MoveSpeed;
     public float Sensetive;
-    public float JumpForse;
-    public float stamina;
-    private float SitSpeed;
-    private float RunSpeed;
-    private float SimpleSpeed;
-    private float MouseX;
-    private float MouseY;
-    private List<float> Characteristicks;
+
+    [Header("Скорости персонажа")]
+    public float MoveSpeed;//Обычная скорость движения
+    public float JumpForse;//Сила прыжка
+    private float SitSpeed;//Скорость в присиде
+    private float RunSpeed;//Скорость при беге
+    private float SimpleSpeed;//Хранит начальную скорость
+
+    [Header("Характеристики")]
+    public float Stamina;//Энергия для бега
+    public float Health;//Здоровье
+    public float Food;//Еда
+    public float SleepEnergy = 100;//Енергия до сна
+    public float Thirst;//Жажда
+
+    private float MouseX;//Положение мыши по Иксу
+    private float MouseY;//Положение мыщи по Игрику
+    private Rigidbody PlayerRigedBody;//Физика персонажа
+    private Coroutine StaminaDroppingCorutin;//Ссылка на корутину усталости
+    private List<float> Characteristick;//Лист всех характеристик
+    private List<GameObject> CharacteristicksIcons = new List<GameObject>();//Иконки всех характеристик
     private void Start()
     {
         PlayerRigedBody = GetComponent<Rigidbody>();
         SimpleSpeed = MoveSpeed;
         SitSpeed = SimpleSpeed * 0.5f;
         RunSpeed = SimpleSpeed * 1.5f;
+        Characteristick = new List<float>() {Stamina,Health,Food,SleepEnergy,Thirst};//Заполняем лист всеми характеристиками
+        CharacteristicksIcons = GameObject.Find("PlayerUI/Icons").GetComponentsInChildren<Transform>().Select(i=>i.gameObject).ToList();//Выбираем все GameObject из обьекта с иконкми
+        CharacteristicksIcons = CharacteristicksIcons.Where(i => i.GetComponent<ProgressBarScript>() != null).ToList();//Выбираем те на которых весит скрипт ProGressBarScript
 
-        Characteristicks = new List<float>() { Health, stamina };
+        StartCoroutine(CharacteristicDropping(3, 0.005f,EndValue: 0,Speed: 0.01f));//Снижение Голода
+        StartCoroutine(CharacteristicDropping(2, 0.05f, EndValue: 0, Speed: 0.1f));//Снижение Сна
     }
-    public void PlayerMove() 
+    public IEnumerator PlayerMove() 
     {
         if (Input.GetKey(KeyCode.W)) 
         {
@@ -69,46 +82,21 @@ public class PlayerControll : MonoBehaviour
             MoveSpeed = SimpleSpeed;
             GetComponent<CapsuleCollider>().height += 2;
         }
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        if (Input.GetKeyDown(KeyCode.LeftShift)&&Stamina>0)
         {
-            if (stamina > 0) 
-            {
-                MoveSpeed = RunSpeed;
-                var corutin = SmoothDropping(1, 20,5); 
-                StartCoroutine(corutin);    
-            }
+            MoveSpeed = RunSpeed;
+            if(StaminaDroppingCorutin!=null)
+            StopCoroutine(StaminaDroppingCorutin);
+            StaminaDroppingCorutin = StartCoroutine(CharacteristicDropping(0,0.5f,Speed:0.1f));
+            Stamina = Characteristick[0];
         }
         if (Input.GetKeyUp(KeyCode.LeftShift))
         {
+            StopCoroutine(StaminaDroppingCorutin);
             MoveSpeed = SimpleSpeed;
-        }
-    }
-    public IEnumerator SmoothDropping(float SpeedOfDropping,params int[] ValueOfDropping)
-    {
-        while (true) 
-        {
-            yield return new WaitForSeconds(SpeedOfDropping);
-            var Zeroes = Characteristicks.Where(i => i == 0).ToList();
-            if (Zeroes.Count >= Characteristicks.Count)
-                break;
-
-            for (int i = 0; i < Characteristicks.Count; i++)
-            {
-                if (Characteristicks[i] <= 0)
-                    continue;
-                try
-                {
-                    Characteristicks[i] -= ValueOfDropping[i];
-                    Debug.Log(Characteristicks[i]);
-                }
-                catch
-                {
-                    Debug.Log("NullReferense");
-                    i = 0;
-                }
-            }
-            Health = Characteristicks[0];
-            stamina = Characteristicks[1];
+            yield return new WaitForSeconds(5);
+            StaminaDroppingCorutin = StartCoroutine(CharacteristicDropping(0,0.5f,100,0.1f,false));
+            Stamina = Characteristick[0];
         }
     }
     private void RotateCamera() 
@@ -118,9 +106,57 @@ public class PlayerControll : MonoBehaviour
         MouseY = Mathf.Clamp(MouseY, -45, 45);
         gameObject.transform.localRotation = Quaternion.Euler(MouseY, MouseX, 0);
     }
+
+    public IEnumerator CharacteristicDropping(int index,float Value = 5, float EndValue = 0, float Speed = 1,bool Mode = true) 
+    {
+        if (Mode)
+        {
+            while (Characteristick[index] > EndValue)
+            {
+                yield return new WaitForSeconds(Speed);
+                Characteristick[index] -= Value;
+                Debug.Log(Stamina);
+                SetHaracteristiclk(Characteristick[index], index);
+                CharacteristicksIcons[index].GetComponent<ProgressBarScript>().SetProgressBar(Characteristick[index] / 100);
+            }
+        }
+        else
+        {
+            while (Characteristick[index] < EndValue)
+            {
+                yield return new WaitForSeconds(Speed);
+                Characteristick[index] += Value;
+                Debug.Log(Stamina);
+                SetHaracteristiclk(Characteristick[index], index);
+                CharacteristicksIcons[index].GetComponent<ProgressBarScript>().SetProgressBar(Characteristick[index] / 100);
+            }
+        }
+    }
+    private void SetHaracteristiclk(float value, int index) 
+    {
+        switch (index)
+        {
+            case 0:
+                Stamina = value;
+                break;
+            case 1:
+                Health = value;
+                break;
+            case 2:
+                Food = value;
+                break;
+            case 3:
+                SleepEnergy = value;
+                break;
+            case 4:
+                Thirst = value;
+                break;
+        }
+    }
+
     private void Update()
     {
-        PlayerMove();
+        StartCoroutine(PlayerMove());
         RotateCamera();
     }
 }
