@@ -20,7 +20,7 @@ public class PlayerControll : MonoBehaviour
     [Header("Характеристики")]
     public float Stamina;//Энергия для бега
     public float Health;//Здоровье
-    public float Food;//Еда
+   [BoostName("Еда")] public float Food;//Еда
     public float SleepEnergy = 100;//Енергия до сна
     public float Thirst;//Жажда
 
@@ -104,7 +104,8 @@ public class PlayerControll : MonoBehaviour
         MouseX += Input.GetAxis("Mouse X")*Sensetive;
         MouseY -= Input.GetAxis("Mouse Y")*Sensetive;
         MouseY = Mathf.Clamp(MouseY, -45, 45);
-        gameObject.transform.localRotation = Quaternion.Euler(MouseY, MouseX, 0);
+        gameObject.transform.localRotation = Quaternion.Euler(gameObject.transform.localRotation.eulerAngles.x, MouseX, 0);
+        GetComponentsInChildren<Transform>().FirstOrDefault(i=>i.GetComponent<Camera>()!=null).localRotation = Quaternion.Euler(MouseY, GetComponentsInChildren<Transform>().FirstOrDefault(i => i.GetComponent<Camera>() != null).localRotation.eulerAngles.y, 0);
     }
 
     public IEnumerator CharacteristicDropping(int index,float Value = 5, float EndValue = 0, float Speed = 1,bool Mode = true) 
@@ -115,7 +116,6 @@ public class PlayerControll : MonoBehaviour
             {
                 yield return new WaitForSeconds(Speed);
                 Characteristick[index] -= Value;
-                Debug.Log(Stamina);
                 SetHaracteristiclk(Characteristick[index], index);
                 CharacteristicksIcons[index].GetComponent<ProgressBarScript>().SetProgressBar(Characteristick[index] / 100);
             }
@@ -126,7 +126,6 @@ public class PlayerControll : MonoBehaviour
             {
                 yield return new WaitForSeconds(Speed);
                 Characteristick[index] += Value;
-                Debug.Log(Stamina);
                 SetHaracteristiclk(Characteristick[index], index);
                 CharacteristicksIcons[index].GetComponent<ProgressBarScript>().SetProgressBar(Characteristick[index] / 100);
             }
